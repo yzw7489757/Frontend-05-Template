@@ -1,0 +1,173 @@
+<html>
+
+<head>
+  <style>
+    .cell {
+      display: inline-block;
+      width: 100px;
+      height: 100px;
+      background-color: green;
+      border: 0.5px solid white;
+      vertical-align: middle;
+
+      line-height: 100px;
+      font-size: 50px;
+      text-align: center;
+
+    }
+  </style>
+</head>
+
+<body>
+  <div id="board">
+
+  </div>
+  <script>
+    const chessKey = 3;
+    let pattern = Array.from({
+      length: chessKey
+    }).fill(Array.from({
+      length: chessKey
+    }).fill(0))
+
+    let color = 1
+
+    function show(pattern) {
+      const board = document.getElementById('board')
+      board.innerHTML = ''
+      for (let i = 0; i < chessKey; i++) {
+        for (let j = 0; j < chessKey; j++) {
+          let cell = document.createElement('div')
+          cell.classList.add('cell')
+          cell.innerText =
+            pattern[i * chessKey + j] === 2 ? '❌' :
+            pattern[i * chessKey + j] === 1 ? '⭕' : ''
+
+          cell.addEventListener('click', () => move(pattern, i, j))
+          board.appendChild(cell)
+        }
+        board.appendChild(document.createElement('br'))
+      }
+    }
+    function move(pattern, x, y) {
+      if(pattern[x * chessKey + y] !==0) {
+        alert('已落子')
+        return
+      }
+      pattern[x * chessKey + y] = color
+      if (check(pattern, color)) {
+        alert(color === 1 ? ' ⭕is winner' : '❌ is winner')
+      }
+      color = 3 - color
+      show(pattern)
+      if (willWin(pattern, color)) {
+        console.log(color === 2 ? '❌ will win' : '⭕ will win')
+      }
+    }
+
+    function check(pattern, color) {
+      for (let i = 0; i < chessKey; i++) {
+        let win = true
+        for (let j = 0; j < chessKey; j++) {
+          if (pattern[i * chessKey + j] !== color) {
+            win = false
+          }
+        }
+        if (win) {
+          return true
+        }
+      }
+      for (j = 0; j < chessKey; j++) {
+        let win = true
+        for (i = 0; i < chessKey; i++) {
+          if (pattern[i * chessKey + j] !== color) {
+            win = false
+          }
+        }
+        if (win) {
+          return true
+        }
+      } 
+      {
+        let win = true
+        for (i = 0; i < chessKey; i++) {
+          if (pattern[i][i] !== color) {
+            win = false
+          }
+        }
+        if (win) {
+          return true
+        }
+      }
+      {
+        let win = true
+        for (i = 0; i < chessKey; i++) {
+          if (pattern[i][chessKey - 1 - i] !== color) {
+            win = false
+          }
+        }
+        if (win) {
+          return true
+        }
+      }
+    }
+
+    function clone(pattern) {
+      return [...pattern]
+    }
+
+    function willWin(pattern, color) {
+      for (let i = 0; i < chessKey; i++) {
+        for (let j = 0; j < chessKey; j++) {
+          if (pattern[i * chessKey + j] === 0) {
+            let temp = clone(pattern)
+            temp[i * chessKey + j] = color
+            if (check(temp, color)) {
+              return [i, j]
+            }
+          }
+        }
+      }
+      return null
+    }
+
+    function bestChoice(pattern, color) {
+      let p
+      if (p = willWin(pattern, color)) {
+        return {
+          point: p,
+          result: 1
+        }
+      }
+
+      let result = -2
+      let point = null
+      outer: for (let i = 0; i < chessKey; i++) {
+        for (let j = 0; j < chessKey; j++) {
+          if (pattern[i * chessKey + j]) {
+            continue
+          }
+          let temp = clone(pattern)
+          temp[i * chessKey + j] = color
+          let r = bestChoice(temp, chessKey - color).result
+          if (-r > result) {
+            result = -r
+            point = [i, j]
+          }
+          if (result === 1) {
+            break outer
+          }
+        }
+      }
+
+      return {
+        point: point,
+        result: point ? result : 0
+      }
+    }
+
+    show(pattern)
+  </script>
+</body>
+
+</html>
