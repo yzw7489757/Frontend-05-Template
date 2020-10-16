@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <style>
+    .cell {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      line-height: 7px;
+      vertical-align: top;
+      background-color: gray;
+      border-bottom: 1px solid white;
+      border-right: 1px solid white;
+    }
+    #container {
+      box-sizing: border-box;
+      line-height: 1;
+      font-size: 0;
+      width: 701px;
+    }
+  </style>
+  <body>
+    <div id="container"></div>
+    <button id="reset">reset</button>
+    <script>
+      let mousedown = false;
+      let clear = false;
+      const x = 100;
+      const y = 100;
+      let container = document.getElementById("container");
+      const map = Array(x * y)
+        .fill(0)
+        .map(() => (Math.random() > 0.7 ? 1 : 0));
+
+      function resetStatus() {
+        Array.prototype.forEach.call(container.children, (e, idx) => {
+          if (idx < 1) return;
+          e.style.backgroundColor = map[idx] === 1 ? "black" : "";
+        });
+      }
+
+      let fr = document.createDocumentFragment();
+
+      for (let i = 0; i < y; i++) {
+        for (let j = 0; j < x; j++) {
+          const div = document.createElement("div");
+          div.classList.add("cell");
+          div.setAttribute(`data-id`, `${j}-${i}`);
+          if (map[100 * i + j] === 1) {
+            div.style.backgroundColor = "black";
+          }
+
+          div.addEventListener("mousemove", () => {
+            if (mousedown === false) return;
+            if (clear) {
+              div.style.backgroundColor = "";
+              map[100 * i + j] = 0;
+            } else {
+              div.style.backgroundColor = "black";
+              map[100 * i + j] = 1;
+            }
+          });
+          div.addEventListener("dblclick", () => {
+            resetStatus();
+            const npath = path(map, [0, 0], [j, i]);
+            npath.then((res) => {
+              console.log(res);
+            });
+          });
+          fr.appendChild(div);
+        }
+      }
+
+      container.appendChild(fr);
+      document.addEventListener("mousedown", (e) => {
+        mousedown = true;
+        clear = e.which === 3;
+      });
+
+      document.addEventListener("mouseup", (e) => {
+        mousedown = false;
+      });
+
+      document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      function wait(t) {
+        return new Promise((r) => setTimeout(r, t));
+      }
+
+      async function path(map, start, end) {
+        const queue = new sorted([start], (a, b) => distance(a) - distance(b));
+        const table = Object.create(map);
+
+        if (map[end[1] * 100 + end[0]] === 1) {
+          alert("目的地是障碍物节点");
+          return null;
+        }
+
+        function distance(point) {
+          return (point[0] - end[0]) ** 2 + (point[1] - end[1]) ** 2;
+        }
+
+        console.log('queue: ', queue.length);
+        while (queue.length) {
+          let [x, y] = queue.take();
+
+          if (x === end[0] && y === end[1]) {
+            let path = [];
+            while (x !== start[0] || y !== start[1]) {
+              const n = y * 100 + x;
+              path.push([x, y]);
+              [x, y] = table[n];
+              await wait(15);
+              container.children[n].style.backgroundColor = "purple";
+            }
+
+            container.children[0].style.backgroundColor = "purple";
+            return path.concat(start);
+          }
+
+          await insert(x - 1, y, [x, y]);
+          await insert(x + 1, y, [x, y]);
+          await insert(x, y - 1, [x, y]);
+          await insert(x, y + 1, [x, y]);
+
+          await insert(x - 1, y - 1, [x, y]);
+          await insert(x - 1, y + 1, [x, y]);
+          await insert(x + 1, y - 1, [x, y]);
+          await insert(x + 1, y + 1, [x, y]);
+        }
+
+        async function insert(x, y, pre) {
+          // 判定越界
+          if (x < 0 || y < 0 || x >= 100 || y >= 100) return;
+
+          // 搜索过
+          if (table[y * 100 + x]) {
+            return;
+          }
+
+          container.children[y * 100 + x].style.backgroundColor = "lightgreen";
+          // map[y * 100 + x] = String(map[y * 100 + x]);
+          table[y * 100 + x] = pre;
+          console.log([x, y]);
+          queue.give([x, y]);
+        }
+
+        return null;
+      }
+
+      function sorted(data, compare) {
+        this.data = data.slice();
+        this.compare = compare || ((a, b) => a - b);
+        defineProperties(this, {
+          key: "length",
+          get: function get() {
+            return this.data.length;
+          },
+        });
+      }
+
+      sorted.prototype.take = function () {
+        if (!this.data.length) return;
+
+        let minIndex = 0;
+        let min = this.data[minIndex];
+        const { length } = this.data;
+        for (let i = minIndex + 1; i < length; i++) {
+          if (this.compare(this.data[i], min) < 0) {
+            minIndex = i;
+            min = this.data[minIndex];
+          }
+        }
+        this.data[minIndex] = this.data[length - 1];
+        this.data.pop();
+        return min;
+      };
+
+      sorted.prototype.give = function (v) {
+        this.data.push(v);
+      };
+
+      function defineProperties(target, descriptor) {
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+
+      document.getElementById("reset").addEventListener("click", resetStatus);
+    </script>
+  </body>
+</html>
