@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      {
+        // 状态机实现
+        let pos = 0;
+        let current = null;
+        const number10bitReg = /(^([1-9]\d*(\.\d+)|(\d*(\.\d+)?)))/; // 1-9 或者.开头的十进制
+        const opeartorReg = /^(\+|\-|\*|\/|\!|\~|\++|\-\-)/;
+
+        function* parse(source) {
+          while (true) {
+            current = {
+              start: pos,
+            };
+            if (pos >= source.length) {
+              break;
+            }
+            const str = source.substr(pos);
+            if (/([ \t\n\r]+)/.exec(str.charAt(0))) {
+              yield {
+                type: "whitespace",
+                ...current,
+                end: pos++,
+                value: RegExp.$1,
+              }; // 过滤空白符
+            } else if (isNumber(str) || isOperator(str)) {
+              yield current;
+            } else {
+              throw new SyntaxError("Unidentified character:" + str.charAt(0));
+            }
+          }
+
+          yield {
+            type: "EOF",
+          };
+        }
+
+        function isNumber(str) {
+          if (/\d/.test(str.charAt(0)) === false) return false; // 实际需要考虑多进制写法
+          number10bitReg.lastIndex = 0;
+          const result = number10bitReg.exec(str);
+          if (!result) return false;
+          pos += result[1].length;
+          current = {
+            ...current,
+            end: pos,
+            type: "number",
+            value: result[1],
+          };
+          return true;
+        }
+
+        function isOperator(str) {
+          opeartorReg.lastIndex = 0; // TODO: 多元区分
+          const result = opeartorReg.exec(str);
+          if (!result) return false;
+          pos += result[1].length;
+          current = {
+            ...current,
+            end: pos,
+            type: "opeartor",
+            value: result[1],
+          };
+          return true;
+        }
+        let tokens = [];
+        for (let token of parse("1+2+3*4/5")) {
+          if (token.type !== "whitespace") {
+            tokens.push(token);
+          }
+        }
+
+        const ast = AdditiveExpression(tokens);
+        console.log("ast: ", ast);
+
+        function MultiplicativeExpression(source) {
+          if (source[0].type === "number") {
+            let node = {
+              type: "MultiplicativeExpression",
+              children: [source[0]],
+            };
+            source[0] = node;
+            return MultiplicativeExpression(source);
+          }
+
+          if (
+            source[0].type === "MultiplicativeExpression" &&
+            source[1] &&
+            source[1].value === "*"
+          ) {
+            let node = {
+              type: "MultiplicativeExpression",
+              operator: "*",
+              children: [],
+            };
+            node.children.push(source.shift());
+            node.children.push(source.shift());
+            node.children.push(source.shift());
+            source.unshift(node);
+            return MultiplicativeExpression(source);
+          }
+
+          if (
+            source[0].type === "MultiplicativeExpression" &&
+            source[1] &&
+            source[1].value === "/"
+          ) {
+            let node = {
+              type: "MultiplicativeExpression",
+              operator: "/",
+              children: [],
+            };
+            node.children.push(source.shift());
+            node.children.push(source.shift());
+            node.children.push(source.shift());
+            source.unshift(node);
+            return MultiplicativeExpression(source);
+          }
+
+          if (source[0].type === "whitespace") {
+            source.shift();
+            return MultiplicativeExpression(source);
+          }
+
+          if (source[0].type === "MultiplicativeExpression") return source[0];
+
+          return MultiplicativeExpression(source);
+        }
+
+        function AdditiveExpression(source) {
+          if (source[0].type === "MultiplicativeExpression") {
+            let node = {
+              type: "AdditiveExpression",
+              children: [source[0]],
+            };
+            source[0] = node;
+            return AdditiveExpression(source);
+          }
+
+          if (
+            source[0].type === "AdditiveExpression" &&
+            source[1] &&
+            source[1].value === "+"
+          ) {
+            let node = {
+              type: "AdditiveExpression",
+              operator: "+",
+              children: [],
+            };
+            node.children.push(source.shift());
+            node.children.push(source.shift());
+            MultiplicativeExpression(source);
+            node.children.push(source.shift());
+            source.unshift(node);
+            return AdditiveExpression(source);
+          }
+
+          if (
+            source[0].type === "AdditiveExpression" &&
+            source[1] &&
+            source[1].value === "-"
+          ) {
+            let node = {
+              type: "AdditiveExpression",
+              operator: "-",
+              children: [],
+            };
+            node.children.push(source.shift());
+            node.children.push(source.shift());
+            MultiplicativeExpression(source);
+            node.children.push(source.shift());
+            source.unshift(node);
+            return AdditiveExpression(source);
+          }
+
+          if (source[0].type === "AdditiveExpression") {
+            return source[0];
+          }
+          MultiplicativeExpression(source);
+          return AdditiveExpression(source);
+        }
+      }
+
+      {
+        // 原始实现
+        const regexp = /([0-9\.]+)|([ \t\n\r]+)|([\r\n]+)|(\*)|(\/)|(\-)|(\+)/g;
+
+        var dictionary = [
+          "number",
+          "whitespace",
+          "lineTerminator",
+          "*",
+          "/",
+          "-",
+          "+",
+        ];
+        function* tokenize(str) {
+          let lastIndex = 0;
+          let result = null;
+          while (true) {
+            lastIndex = regexp.lastIndex;
+            result = regexp.exec(str);
+
+            if (!result) break;
+            if (regexp.lastIndex - lastIndex > result[0].length) break;
+            let token = {
+              value: null,
+              type: null,
+            };
+
+            for (var i = 0; i <= dictionary.length; i++) {
+              if (result[i]) token.type = dictionary[i - 1];
+            }
+            token.value = result[0];
+            yield token;
+          }
+          yield {
+            type: "EOF",
+          };
+        }
+
+        // for (let token of tokenize("1 * 2 / 3")) {
+        //   console.log(token);
+        // }
+      }
+    </script>
+  </body>
+</html>
