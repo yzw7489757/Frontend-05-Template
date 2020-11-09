@@ -6,11 +6,12 @@
     <title>Document</title>
   </head>
   <body>
-    <div id="drag" style="width:100px; height:100px; background:gray"></div>
+    <div id="container"></div>
+    <div id="drag" style="width:100px; height:100px; background:gray; display: inline-block;"></div>
   </body>
   <script>
+    let usedReactives = []; 
     const callbacks = new Map();
-    let usedReactives = [];
     const reactivites = new Map();
     let obj = {
       a: { c: 3},
@@ -74,26 +75,56 @@
     // 未完
   </script>
 
-  <script>
-    let dy = 0, dx = 0;
-    const dragable = document.getElementById('drag');
+<script>
+  let dy = 0, dx = 0;
+  const dragable = document.getElementById('drag');
 
-    const mousedown = (evt) => {
-      const startX = evt.pageX - dx;
-      const startY = evt.pageY - dy;
+  const mousedown = (evt) => {
+    const startX = evt.pageX - dx;
+    const startY = evt.pageY - dy;
 
-      const move = e => {
-        dx = e.pageX - startX;
-        dy = e.pageY - startY;
-        dragable.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
-      }
-      // 只加在dragable节点上，移动过快鼠标容易脱离 16ms
-      document.addEventListener('mousemove', move);
-      document.addEventListener('mouseup', () => {
-        dragable.removeEventListener('mousemove', move);
-      }, { once: true });
+    const move = e => {
+      dx = e.pageX - startX;
+      dy = e.pageY - startY;
+      // dragable.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+      const range = getNearest(e.clientX, e.clientY);
+      range.insertNode(dragable)
     }
-    
-    dragable.addEventListener('mousedown', mousedown)
-  </script>
+    // 只加在dragable节点上，移动过快鼠标容易脱离 16ms
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', () => {
+      document.removeEventListener('mousemove', move);
+    }, { once: true });
+  }
+  
+  dragable.addEventListener('mousedown', mousedown)
+  
+</script> 
+<script>
+document.getElementById('container').innerText = '文字文字'.repeat(100)
+let ranges = [];
+let container = document.getElementById('container');
+for(let i = 9; i< container.childNodes[0].textContent.length; i++) {
+  let range = document.createRange();
+  range.setStart(container.childNodes[0], i);
+  range.setEnd(container.childNodes[0], i);
+  ranges.push(range)
+}
+
+function getNearest(x, y) {
+  let min = Infinity;
+  let nearest = null;
+  for(let range of ranges) {
+    let rect = range.getBoundingClientRect();
+    let distance = (rect.x - x) ** 2 + (rect.y - y) ** 2;
+    if(distance < min) {
+      nearest = range
+      min = distance;
+    }
+  }
+  return nearest
+}
+
+document.addEventListener('selectstart', evt => evt.preventDefault())
+</script>
 </html>
