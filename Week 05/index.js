@@ -51,4 +51,4 @@ effect(() => {
 
 console.log(usedReactives);
 
-    // 未完
+// 未完
